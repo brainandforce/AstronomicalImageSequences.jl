@@ -1,10 +1,12 @@
-# AstronomicalImageSequences
+# AstronomicalImageSequences.jl
 
 [![Build Status][ci-status-img]][ci-status-url]
 [![Aqua.jl][aqua-img]][aqua-url]
 
-Support for astronomical image sequences in the most generic possible way.
-This package provides types that allow for grouping images by relevant categories, such as session date, equipment used, or even portions of a mosaic, so that different steps (such as calibration, registration, etc.) can use all of the data relevant to an imaging project.
+AstronomicalImageSequences.jl provides support for astronomical image sequences in the most generic possible way.
+This package provides types that allow for grouping images by relevant categories, such as session date, equipment used, or even portions of a mosaic, so that different steps (such as calibration, registration, etc.) can use all of the data relevant to an imaging project (for instance, registering every frame against a single reference across the entire project).
+
+Although this package primarily defines types for working with image data, it also provides a function for calibrating images.
 
 [repo-url]:         https://github.com/brainandforce/ImageStacking.jl
 [docs-stable-img]:  https://img.shields.io/badge/docs-stable-blue.svg
