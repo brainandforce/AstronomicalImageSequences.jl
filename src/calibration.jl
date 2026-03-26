@@ -2,16 +2,28 @@
 """
     AbstractCalibrationFrames{M<:AbstractMatrix} <: AbstractDict{Symbol,M}
 
-Supertype for sets of calibration frames of type `M`, all of equal size.
+Supertype for sets of calibration frames of type `M`, all of equal dimensions.
+This includes a bias frame, dark frame, and flat frame.
+`AbstractCalibrationFrames` can be indexed by the symbols `:bias`, `:dark`, and `:flat`, returning
+an array of type `M`.
 
 Calibration frames can be either pre-loaded into memory or lazily constructed through file
-references or generated data.
-If the 
+references (often as `AbstractString` instances) or generated data (such as an offset level).
 """
 abstract type AbstractCalibrationFrames{M} <: AbstractDict{Symbol,M}
 end
 
 Base.length(::AbstractCalibrationFrames) = 3
+
+Base.keys(::AbstractCalibrationFrames) = (:bias, :dark, :flat)
+Base.values(cf::AbstractCalibrationFrames) = (cf[:bias], cf[:dark], cf[:flat])
+
+function Base.iterate(cf::AbstractCalibrationFrames, state = :bias)
+    state === :bias && return (:bias => cf[:bias], :dark)
+    state === :dark && return (:dark => cf[:dark], :flat)
+    state === :flat && return (:flat => cf[:flat], :done)
+    return nothing
+end
 
 """
     CalibrationFrames{M,B,D,F}
@@ -30,9 +42,17 @@ struct CalibrationFrames{M,B,D,F} <: AbstractCalibrationFrames{M}
     flat::F
 end
 
+function CalibrationFrames{M}(bias::B, dark::D, flat::F) where {M,B,D,F}
+    # Ensure that the dimensionalities are identical (for anything that's an array)
+    sized_args = filter(x -> !isa(x, Union{Nothing,Missing,Real}), (bias, dark, flat))
+    sizes = size.(sized_args)
+    allequal(sizes) || throw(DimensionMismatch("input images have mismatched dimensions"))
+    return CalibrationFrames{M,B,D,F}(first(sizes), bias, dark, flat)
+end
+
 function _generate_frame(cf::CalibrationFrames{M}, i::Symbol) where M
-    i in (:bias, :dark) && return _generate_frame(+, M, getproperty(cf, i), cf.framesize)
-    i in (:flat)        && return _generate_frame(*, M, getproperty(cf, i), cf.framesize)
+    i in tuple(:bias, :dark) && return _generate_frame(+, M, getproperty(cf, i), cf.framesize)
+    i in tuple(:flat)        && return _generate_frame(*, M, getproperty(cf, i), cf.framesize)
     throw(KeyError(i))
 end
 
