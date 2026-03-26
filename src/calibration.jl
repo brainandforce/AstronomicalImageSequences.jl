@@ -122,14 +122,55 @@ end
 
 Base.getindex(cf::CalibrationFrames, i::Symbol) = _generate_frame(cf, i)
 
-"""
-    calibrate(image::AbstractMatrix, cf::AbstractCalibrationFrames)
+#---Image calibration------------------------------------------------------------------------------#
 
-Calibrates the image with a given set of calibration frame data.
+function siril_flat_normalization_value(image::AbstractMatrix)
+    # Siril checks the central ninth of the image instead of the whole image
+    central_ninth = let 
+        width, height = size(image)
+        startx, starty = div.((width, height) .- 1, 3)
+        CartesianIndices((startx:(width - startx), starty:(width - starty)))
+    end
+    return sum(image[i] for i in central_ninth) / length(central_ninth)
+end
+
+siril_flat_normalization_value(cf::AbstractCalibrationFrames) = flat_normalization_value(cf[:flat])
+
 """
-function calibrate(image::AbstractMatrix, cf::AbstractCalibrationFrames{M}) where M
-    T = promote(eltype(image), eltype(M))
-    result = similar(image, T)
-    result .= (image - cf[:bias] - cf[:dark]) / cf[:flat]
+    calibrate(
+        image::AbstractMatrix,
+        cf::AbstractCalibrationFrames,
+        [normalization = maximum(cf[:flat])]
+    )
+
+Calibrates an image with a set of calibration frame data, following the formula:
+```
+calibrated_image = (image .- (cf[:bias] .+ cf[:dark])) ./ (cf[:flat] ./ normalization)
+```
+"""
+function calibrate(
+    image::AbstractMatrix,
+    cf::AbstractCalibrationFrames{M},
+    normalization = maximum(cf[:flat])
+) where M
+    T = promote_type(eltype(image), eltype(M))
+    result = collect(T, image)
+    result .-= cf[:bias] + cf[:dark]
+    result ./= cf[:flat] ./ normalization
+    return result
+end
+
+function calibrate(
+    image::AbstractMatrix{I},
+    cf::AbstractCalibrationFrames{M},
+    normalization = maximum(cf[:flat])
+) where {I<:Integer,T<:AbstractFloat,M<:AbstractMatrix{T}}
+    result = collect(T, image)
+    # Add 1 so that we're dividing by a power of 2
+    # typemax(I) is 2^(8*sizeof(I)) - 1
+    denom = T(typemax(I)) + one(T)
+    result ./= denom
+    result .-= cf[:bias] .+ cf[:dark]
+    result ./= cf[:flat] ./ normalization
     return result
 end
