@@ -93,6 +93,6 @@ A matrix of `ProjectSequence` instances, with the indices corresponding to the p
 frame's contribution the final image.
 If a frame is not present in the final output, `missing` may be substituted.
 """
-struct MosaicSequence{S<:ProjectSequence} <: AbstractMatrix{Union{S,Missing}}
-    projects::Matrix{Union{S,Missing}}
+struct MosaicSequence{S<:ProjectSequence} <: AbstractMatrix{S}
+    projects::Matrix{S}
 end
