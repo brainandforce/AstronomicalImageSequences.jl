@@ -24,13 +24,13 @@ does not affect stacking: either an array of zeros or ones depending on whether 
 additive (biases and darks) or multiplicative (flats).
 """
 struct CalibrationFrames{M,B,D,F} <: AbstractCalibrationFrames{M}
-    framesize::NTuple{2,Int}
+    framesize::NTuple{2,Int}    # The common size of all images
     bias::B
     dark::D
     flat::F
 end
 
-function _generate_frame(cf::CalibrationFrames{M}, i::Symbol) where M<:AbstractMatrix
+function _generate_frame(cf::CalibrationFrames{M}, i::Symbol) where M
     i in (:bias, :dark) && return _generate_frame(+, M, getproperty(cf, i), cf.framesize)
     i in (:flat)        && return _generate_frame(*, M, getproperty(cf, i), cf.framesize)
     throw(KeyError(i))
