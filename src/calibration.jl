@@ -50,6 +50,14 @@ function CalibrationFrames{M}(bias::B, dark::D, flat::F) where {M,B,D,F}
     return CalibrationFrames{M,B,D,F}(first(sizes), bias, dark, flat)
 end
 
+"""
+    AstronomicalImageSequences._generate_frame(cf::CalibrationFrames{M}, i::Symbol) -> M
+
+Used when indexing a `CalibrationFrames{M}` object to convert the underlying data to type `M`.
+
+If the underlying data for a frame is an integer matrix, and `eltype(M) <: AbstractFloat`, then the
+integer values are rescaled so that the maximum ADU value is `one(eltype(M))`.
+"""
 function _generate_frame(cf::CalibrationFrames{M}, i::Symbol) where M
     i in tuple(:bias, :dark) && return _generate_frame(+, M, getproperty(cf, i), cf.framesize)
     i in tuple(:flat)        && return _generate_frame(*, M, getproperty(cf, i), cf.framesize)
@@ -60,9 +68,19 @@ function _generate_frame(
     ::Union{typeof(+),typeof(*)},
     ::Type{M},
     data::AbstractMatrix,
-    sz::NTuple{2,Int}
+    sz::NTuple{2,Int} = size(M)
 ) where M
     return convert(M, data)
+end
+
+function _generate_frame(
+    ::Union{typeof(+),typeof(*)},
+    ::Type{M},
+    data::AbstractMatrix{I},
+    sz::NTuple{2,Int} = size(M)
+) where {I<:Integer,T<:AbstractFloat,M<:AbstractMatrix{T}}
+    denom = T(typemax(I)) + one(T)
+    return convert(M, [x ./ denom for x in data])
 end
 
 function _generate_frame(
@@ -72,6 +90,16 @@ function _generate_frame(
     sz::NTuple{2,Int} = size(M) # this can only be omitted for StaticMatrix!
 ) where M
     return convert(M, fill(data, sz))
+end
+
+function _generate_frame(
+    ::Union{typeof(+),typeof(*)},
+    ::Type{M},
+    data::I,
+    sz::NTuple{2,Int} = size(M)
+) where {I<:Integer,T<:AbstractFloat,M<:AbstractMatrix{T}}
+    denom = T(typemax(I)) + one(T)
+    return convert(M, fill(data / denom, sz))
 end
 
 function _generate_frame(
